@@ -19,7 +19,7 @@ pub fn from_string_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
 
     let mut default_kw = None;
     let mut default =
-        quote! { ::core::result::Result::Err(#strum_module_path::ParseError::VariantNotFound) };
+        quote! { ::core::result::Result::Err(#strum_module_path::ParseError::VariantNotFound([0u8; 16])) };
 
     let mut phf_exact_match_arms = Vec::new();
     let mut standard_match_arms = Vec::new();
@@ -116,11 +116,28 @@ pub fn from_string_inner(ast: &DeriveInput) -> syn::Result<TokenStream> {
     let standard_match_body = if standard_match_arms.is_empty() {
         default
     } else {
-        quote! {
-            ::core::result::Result::Ok(match s {
-                #(#standard_match_arms)*
-                _ => return #default,
-            })
+        if default_kw.is_none() {
+            quote! {
+                ::core::result::Result::Ok(match s {
+                    #(#standard_match_arms)*
+                    _ => {
+                        let mut slice = [0u8; 16];
+                        let bytes = s.as_bytes();
+                        let len = bytes.len().min(16);
+                        slice[..len].copy_from_slice(&bytes[..len]);
+                        return ::core::result::Result::Err(#strum_module_path::ParseError::VariantNotFound(slice));
+                    },
+                })
+            }
+        } else {
+            quote! {
+                ::core::result::Result::Ok(match s {
+                    #(#standard_match_arms)*
+                    _ => {
+                        return #default;
+                    },
+                })
+            }
         }
     };
 

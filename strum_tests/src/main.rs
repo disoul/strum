@@ -1,5 +1,6 @@
 use strum::{Display, EnumCount, EnumDiscriminants, EnumString};
 use strum_macros::EnumIs;
+use std::str::FromStr;
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq, EnumString, Display, EnumCount, EnumDiscriminants, EnumIs)]
@@ -16,5 +17,6 @@ enum Color {
 }
 
 fn main() {
-    println!("Tests crate");
+    let color = Color::from_str("yellow2");
+    println!("Tests crate {:?}", color);
 }

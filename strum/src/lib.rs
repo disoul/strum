@@ -36,12 +36,28 @@ use core::iter::FusedIterator;
 #[doc(hidden)]
 pub use phf as _private_phf_reexport_for_macro_if_phf_feature;
 
+type VariantStrSlice = [u8; 16];
+
 /// The `ParseError` enum is a collection of all the possible reasons
 /// an enum can fail to parse from a string.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub enum ParseError {
-    VariantNotFound,
+    VariantNotFound(VariantStrSlice),
 }
+
+
+#[cfg(feature = "std")]
+impl std::fmt::Debug for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseError::VariantNotFound(slice) => {
+                let str_slice = std::str::from_utf8(slice).unwrap_or_else(|_| "<Invalid UTF-8>");
+                write!(f, "VariantNotFound({})", str_slice)
+            },
+        }
+    }
+}
+
 
 #[cfg(feature = "std")]
 impl std::fmt::Display for ParseError {
@@ -49,7 +65,7 @@ impl std::fmt::Display for ParseError {
         // We could use our macro here, but this way we don't take a dependency on the
         // macros crate.
         match self {
-            ParseError::VariantNotFound => write!(f, "Matching variant not found"),
+            ParseError::VariantNotFound(s) => write!(f, "Matching variant not found: {}", std::str::from_utf8(s).unwrap_or_else(|_| "invalid utf8 input")),
         }
     }
 }
@@ -58,7 +74,7 @@ impl std::fmt::Display for ParseError {
 impl std::error::Error for ParseError {
     fn description(&self) -> &str {
         match self {
-            ParseError::VariantNotFound => {
+            ParseError::VariantNotFound(_) => {
                 "Unable to find a variant of the given enum matching the string given. Matching \
                  can be extended with the Serialize attribute and is case sensitive."
             }
